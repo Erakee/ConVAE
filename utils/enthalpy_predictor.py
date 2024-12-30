@@ -3,6 +3,11 @@ import torch
 from torch_geometric.data import Data
 from rdkit import Chem
 from rdkit.Chem.rdmolops import GetAdjacencyMatrix
+import sys
+import os
+
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.mpnn import MPNNModel
 import warnings
 warnings.filterwarnings('ignore')
