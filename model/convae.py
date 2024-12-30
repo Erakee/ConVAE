@@ -1,7 +1,12 @@
-import torch
+import sys
 import os
-from utils import utils
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import torch
+import util.utils as utils
+# from utils import utils
 import time
+from util.enthalpy_predictor import predict_enthalpy
 
 
 class Encoder(torch.nn.Module):
@@ -122,7 +127,6 @@ class ConVAE(object):
 
     def reconstruction_quality_per_sample(self, X):
         """计算重构质量
-        
         Args:
             X: 输入的one-hot编码分子表示
         Returns:
@@ -152,7 +156,6 @@ class ConVAE(object):
 
     def sample(self, nSample):
         """从隐空间采样
-        
         Args:
             nSample: 采样数量
         Returns:
@@ -168,7 +171,6 @@ class ConVAE(object):
 
     def latent_space_quality(self, nSample, tokenizer=None):
         """评估隐空间质量
-        
         Args:
             nSample: 采样数量
             tokenizer: 分词器
@@ -188,29 +190,29 @@ class ConVAE(object):
         # print("ValidSmilesStrs: %s" % (validSmilesStrs,))
         return len(validSmilesStrs)
     
-    def predict_enthalpy(self, smiles):
+    def predict_enthalpy_list(self, smiles):
         # 调用模型，最好是改一下训练逻辑，就是一个batch训练完之后，收集所有生成的smiles列表，判断有效性，有效的再调用模型进行预测，统一返回预测生成焓结果
         # Placeholder for the function that predicts enthalpy from SMILES
         pass
 
-    def calculate_enthalpy_loss(self, predicted_enthalpy, true_enthalpy):
+    def calculate_enthalpy_loss(self, gen_smiles, cond_enthalpy):
         # Calculate the loss for the enthalpy prediction
-        predict_enthalpy(predicted_enthalpy, true_enthalpy)
-        return torch.nn.functional.mse_loss(predicted_enthalpy, true_enthalpy)
+        predicted_enthalpy = predict_enthalpy(gen_smiles)
+        return torch.nn.functional.mse_loss(predicted_enthalpy, cond_enthalpy)
 
-    def loss_per_sample(self, pred_y, y, mu, logvar, predicted_enthalpy, true_enthalpy):
+    def loss_per_sample(self, pred_y, y, mu, logvar, gen_smiles, true_enthalpy):
         reconstruction_loss = torch.nn.functional.cross_entropy(
             pred_y.transpose(1, 2), y.transpose(1, 2), reduction='none').sum(dim=1)
         kld_loss = torch.sum(-0.5 * (1.0 + logvar -
                              mu.pow(2) - logvar.exp()), dim=1)
-        cond_loss = calculate_enthalpy_loss(predicted_enthalpy, true_enthalpy)
-        return reconstruction_loss, kld_loss
+        cond_loss = self.calculate_enthalpy_loss(gen_smiles, true_enthalpy)
+        return reconstruction_loss, kld_loss, cond_loss
 
     def trainModel(self, dataloader, encoderOptimizer, decoderOptimizer, encoderScheduler, decoderScheduler, KLD_alpha, nepoch, tokenizer, printInterval):
         self.encoder.loadState()
         self.decoder.loadState()
         minloss = None
-        numSample = 100
+        numSample = 10
         for epoch in range(1, nepoch + 1):
             reconstruction_loss_list, accumulated_reconstruction_loss, kld_loss_list, accumulated_kld_loss, cond_loss_list, accumulated_cond_loss = [], 0, [], 0, [], 0
             quality_list, numValid_list = [], []
@@ -221,11 +223,10 @@ class ConVAE(object):
                 enthalpy = enthalpy.to(self.device)
                 latent_vec, mu, logvar = self.encoder(X, enthalpy)
                 pred_y = self.decoder(latent_vec, X, enthalpy)
-                predicted_indices = pred_y.argmax(dim=2) # 这里三行是为了将输出解码为smiles，方便后续直接使用gnn预测生成焓
+                predicted_indices = pred_y.argmax(dim=2) # 这里是为了将输出解码为smiles，方便后续直接使用gnn预测生成焓
                 predicted_smiles = tokenizer.getSmiles(predicted_indices)
-                pred_enthalpy = self.predict_enthalpy(predicted_smiles)
                 reconstruction_loss, kld_loss, cond_loss = self.loss_per_sample(
-                    pred_y, X, mu, logvar, pred_enthalpy, enthalpy)
+                    pred_y, X, mu, logvar, predicted_smiles, enthalpy)
                 reconstruction_mean, kld_mean, cond_mean = reconstruction_loss.mean(), kld_loss.mean() * \
                     KLD_alpha, cond_loss.mean()
                 loss = reconstruction_mean + kld_mean + cond_mean

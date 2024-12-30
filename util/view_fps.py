@@ -1,5 +1,5 @@
 import pickle
-import utils
+import util
 from rdkit import DataStructs
 import numpy as np
 
@@ -35,5 +35,5 @@ def view_fingerprints(pkl_fname):
     print(f"\nAverage fingerprint density (from 1000 samples): {avg_density:.3f}")
 
 if __name__ == '__main__':
-    pkl_fname = utils.config['fname_fps']
+    pkl_fname = util.config['fname_fps']
     view_fingerprints(pkl_fname) 
