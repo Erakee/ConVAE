@@ -4,7 +4,7 @@ import rdkit.Chem as Chem
 import rdkit.Chem.AllChem as AllChem
 from rdkit.Chem import rdMolDescriptors
 from tqdm import tqdm
-import util
+import util.utils as utils
 
 def generate_fingerprints(smi_fname, pkl_fname):
     """生成分子指纹文件
@@ -47,7 +47,7 @@ def generate_fingerprints(smi_fname, pkl_fname):
 
 if __name__ == '__main__':
     # 从config中获取文件路径
-    smi_fname = util.config['fname_dataset']
-    pkl_fname = util.config['fname_fps']
+    smi_fname = utils.config['fname_dataset']
+    pkl_fname = utils.config['fname_fps']
     
     generate_fingerprints(smi_fname, pkl_fname) 

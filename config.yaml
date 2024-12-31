@@ -1,7 +1,11 @@
 ---
+ root_path: 'D:/Project/VAE_Related/ConVAE/'
  working_dir: '.'
- fname_dataset: 'dataset/em_train.csv'
- fname_fps: 'dataset/em_fps.pkl'
+# working_dir: 'D:/Project/VAE_Related/ConVAE'
+ fname_dataset: 'data/em_train.csv'
+# fname_dataset: 'data/em_train.smi'
+ token_file: 'data/em_train.smi'
+ fname_fps: 'data/em_fps.pkl'
  fname_tokenizer: '.tokenizer.pkl'
  fname_rnn_parameters: 'parameters/rnn.param'
  fname_vae_encoder_parameters: 'parameters/encoder.param'
@@ -12,6 +16,7 @@
  batch_size: 512
  num_epoch: 60
  lr: 1.0e-4
+ threshold: 0.2
 
 
  rnn_param:
@@ -20,6 +25,7 @@
   num_hidden: 3
 
  vae_param:
+  con_dims: 1
   fc_dims: [2048, 512, 128]
   latent_dim: 64
   hidden_dim: 384

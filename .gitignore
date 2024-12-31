@@ -4,3 +4,7 @@ enthalpy/diaoyong.ipynb
 /model/__pycache__
 /enthalpy/__pycache__
 /dataset/__pycache__
+/.idea
+.tokenizer.pkl
+/util/__pycache__
+/util/__pycache__

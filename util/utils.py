@@ -13,17 +13,18 @@ from rdkit import rdBase, RDLogger
 rdBase.DisableLog('rdApp.error')
 RDLogger.DisableLog('rdApp.*')
 
-def __load_config(fyaml='config.yaml'):
+def __load_config(fyaml='D:/Project/VAE_Related/ConVAE/config.yaml'):
     with open(fyaml, 'r') as f:
         config = yaml.full_load(f)
-    config['working_dir'] = os.path.abspath(config['working_dir'])
-    config['fname_dataset'] = os.path.join(config['working_dir'], config['fname_dataset'])
-    config['fname_fps'] = os.path.join(config['working_dir'], config['fname_fps'])
-    config['fname_tokenizer'] = os.path.join(config['working_dir'], config['fname_tokenizer'])
-    config['fname_rnn_parameters'] = os.path.join(config['working_dir'], config['fname_rnn_parameters'])
-    config['fname_vae_encoder_parameters'] = os.path.join(config['working_dir'], config['fname_vae_encoder_parameters'])
-    config['fname_vae_decoder_parameters'] = os.path.join(config['working_dir'], config['fname_vae_decoder_parameters'])
-    config['sampled_dir'] = os.path.join(config['working_dir'], config['sampled_dir'])
+    config['root_path'] = os.path.abspath(config['root_path'])
+    config['fname_dataset'] = os.path.join(config['root_path'], config['fname_dataset'])
+    config['token_file'] = os.path.join(config['root_path'], config['token_file'])
+    config['fname_fps'] = os.path.join(config['root_path'], config['fname_fps'])
+    config['fname_tokenizer'] = os.path.join(config['root_path'], config['fname_tokenizer'])
+    config['fname_rnn_parameters'] = os.path.join(config['root_path'], config['fname_rnn_parameters'])
+    config['fname_vae_encoder_parameters'] = os.path.join(config['root_path'], config['fname_vae_encoder_parameters'])
+    config['fname_vae_decoder_parameters'] = os.path.join(config['root_path'], config['fname_vae_decoder_parameters'])
+    config['sampled_dir'] = os.path.join(config['root_path'], config['sampled_dir'])
     config['rnn_param']['maxLength'] = config['maxLength']
     config['vae_param']['maxLength'] = config['maxLength']
     return config
@@ -44,7 +45,7 @@ def get_tokenizer():
         with open(config['fname_tokenizer'], 'rb') as f:
             tokenizer = pickle.load(f)
     else:
-        tokenizer = getTokenizer(config['fname_dataset'], handleBraces=True)
+        tokenizer = getTokenizer(config['token_file'], handleBraces=True)
         with open(config['fname_tokenizer'], 'wb') as f:
             pickle.dump(tokenizer, f)
     config['rnn_param']['num_embeddings'] = tokenizer.getTokensSize()

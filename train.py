@@ -11,7 +11,6 @@ import torch
 # import vae
 import model.convae as cvae
 import argparse
-import os
 import multiprocessing
 
 # parser = argparse.ArgumentParser()
@@ -40,7 +39,7 @@ def main():
         shuffle=True, num_workers=4, 
         collate_fn=smilesDataset.one_hot_collate_fn)
     
-    vae_model = cvae.VAE(**utils.config['vae_param'],
+    vae_model = cvae.ConVAE(**utils.config['vae_param'],
                         encoder_state_fname=utils.config['fname_vae_encoder_parameters'],
                         decoder_state_fname=utils.config['fname_vae_decoder_parameters'],
                         device=device)
@@ -98,6 +97,11 @@ def main():
     #                         tokenizer, printInterval)
 
 if __name__ == '__main__':
+    # from multiprocessing import freeze_support
+    # freeze_support()
     # 如果要冻结成exe还需要加这行
     # multiprocessing.freeze_support()
+    # 保护程序入口，防止在 Windows 上使用 multiprocessing 时出错
+    multiprocessing.set_start_method('spawn', force=True)
+    multiprocessing.freeze_support()
     main()
