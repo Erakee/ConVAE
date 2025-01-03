@@ -32,12 +32,12 @@ def main():
     print(tokenizer.tokensDict)
     smilesDataset = SmilesDataset(
         utils.config['fname_dataset'], tokenizer, utils.config['maxLength'])
-    
+    lb, ub = smilesDataset._getbound()
     # if model_type == 'cvae':
     smilesDataloader = torch.utils.data.DataLoader(
         smilesDataset, batch_size=utils.config['batch_size'], 
-        shuffle=True, num_workers=4, 
-        collate_fn=smilesDataset.one_hot_collate_fn)
+        shuffle=True, num_workers=4) 
+        # collate_fn=smilesDataset.one_hot_collate_fn)
     
     vae_model = cvae.ConVAE(**utils.config['vae_param'],
                         encoder_state_fname=utils.config['fname_vae_encoder_parameters'],
@@ -70,7 +70,7 @@ def main():
     
     vae_model.trainModel(smilesDataloader, encoderOptimizer, decoderOptimizer, 
                         encoderScheduler, decoderScheduler, 1.0, 
-                        utils.config['num_epoch'], tokenizer, printInterval)
+                        utils.config['num_epoch'], tokenizer, printInterval, lb, ub)
 
     # elif model_type == 'rnn':
     #     smilesDataloader = torch.utils.data.DataLoader(

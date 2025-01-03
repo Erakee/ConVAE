@@ -44,6 +44,41 @@ class Tokenizer(object):
                 startIdx = endIdx
             vectors.append(currentVector)
         return vectors
+    # def tokenize(self, smilesStrs, useTokenDict=False):
+    #     vectors = []
+    #     if useTokenDict:
+    #         appliedMultiCharToken = sorted([key for key in self.tokensDict.keys() if key not in self.toolTokens and len(key) > 1], key=lambda s: len(s), reverse=True)
+    #     else:
+    #         appliedMultiCharToken = self.multiCharTokens
+
+    #     for smilesStr in smilesStrs:
+    #         currentVector = []
+    #         startIdx, endIdx, length = 0, 0, len(smilesStr)
+    #         foundMultiCharToken = False
+    #         while startIdx < length:
+    #             foundMultiCharToken = False
+    #             if self.handleBraces and not useTokenDict and smilesStr[startIdx] == '[':
+    #                 endIdx = smilesStr.index(']', startIdx) + 1
+    #                 token = smilesStr[startIdx:endIdx]  # 包括括号中的内容
+    #                 currentVector.append(token)
+    #                 startIdx = endIdx
+    #                 foundMultiCharToken = True
+    #             else:
+    #                 for token in appliedMultiCharToken:
+    #                     tokenLen = len(token)
+    #                     endIdx = startIdx + tokenLen
+    #                     if endIdx <= length and smilesStr[startIdx:endIdx] == token:
+    #                         currentVector.append(token)
+    #                         startIdx = endIdx
+    #                         foundMultiCharToken = True
+    #                         break
+    #             if not foundMultiCharToken:
+    #                 # 如果没有找到多字符token，继续按单字符处理
+    #                 currentVector.append(smilesStr[startIdx:startIdx + 1])
+    #                 startIdx += 1
+
+    #         vectors.append(currentVector)
+    #     return vectors
     
     def getTokensSize(self):
         return len(self.tokensDict)

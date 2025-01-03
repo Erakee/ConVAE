@@ -8,3 +8,5 @@ enthalpy/diaoyong.ipynb
 .tokenizer.pkl
 /util/__pycache__
 /util/__pycache__
+*.pyc
+/util/__pycache__

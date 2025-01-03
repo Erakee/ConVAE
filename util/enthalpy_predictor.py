@@ -9,7 +9,9 @@ import os
 # Add the parent directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.mpnn import MPNNModel
+import util.utils as utils
 import warnings
+
 warnings.filterwarnings('ignore')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -18,6 +20,7 @@ model = MPNNModel(num_layers=2, emb_dim=256, in_dim=42, edge_dim=10, out_dim=1).
 model.load_state_dict(torch.load('D:/Project/VAE_Related/ConVAE/enthalpy/stateGNN.pt'))  # Adjust the path as necessary
 # model.load_state_dict(torch.load('D:/Project/VAE_Related/ConVAE/enthalpy/last_epoch_graph_data.pt'))
 model.eval()
+
 
 def one_hot_encoding(x, permitted_list):
     """
@@ -32,9 +35,9 @@ def one_hot_encoding(x, permitted_list):
     return binary_encoding
 
 
-def get_atom_features(atom, 
-                      use_chirality = True, 
-                      hydrogens_implicit = True):
+def get_atom_features(atom,
+                      use_chirality=True,
+                      hydrogens_implicit=True):
     """
     Takes an RDKit atom object as input and gives a 1d-numpy array of atom features as output.
     原子类型、重原子邻居的数量、形式电荷、杂化类型、原子是否在环中、原子是否是芳香族、原子质量、范德华半径和共价半径。
@@ -51,48 +54,50 @@ def get_atom_features(atom,
     是否在环上:{atom.IsInRing()
     """
     # define list of permitted atoms   
-    permitted_list_of_atoms =  ['C','N','O','F','Cl','Br','I', 'Unknown']
-    
+    permitted_list_of_atoms = ['C', 'N', 'O', 'F', 'Cl', 'Br', 'I', 'Unknown']
+
     if hydrogens_implicit == False:
         permitted_list_of_atoms = ['H'] + permitted_list_of_atoms
-    
+
     # compute atom features  
-    #atom_Num_env = one_hot_encoding(str(atom.GetAtomicNum()), [1, 6, 7, 8, 9, "other"]) 
-    atom_type_enc = one_hot_encoding(str(atom.GetSymbol()), permitted_list_of_atoms)    
-    degree_enc = one_hot_encoding(int(atom.GetTotalDegree()), [0, 1, 2, 3, 4, "MoreThanFour"])    
-    formal_charge_enc = one_hot_encoding(int(atom.GetFormalCharge()), [-3, -2, -1, 0, 1, 2, 3, "Extreme"]) #yes    
-    hybridisation_type_enc = one_hot_encoding(str(atom.GetHybridization()), ["S", "SP", "SP2", "SP3", "OTHER"]) #yes
-    #degree_enc = one_hot_encoding(str(atom.GetTotalDegree()), [0, 1, 2, 3, 4, 5, 6, 7, 8]) 
-    is_in_a_ring_enc = [int(atom.IsInRing())] #yes
-    is_aromatic_enc = [int(atom.GetIsAromatic())]  #yes
-    atomic_mass_scaled = [float((atom.GetMass() - 10.812)/116.092)]
-    vdw_radius_scaled = [float((Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum()) - 1.5)/0.6)]
-    covalent_radius_scaled = [float((Chem.GetPeriodicTable().GetRcovalent(atom.GetAtomicNum()) - 0.64)/0.76)]
-    atom_feature_vector = atom_type_enc + formal_charge_enc + hybridisation_type_enc + degree_enc + is_in_a_ring_enc + is_aromatic_enc + atomic_mass_scaled + vdw_radius_scaled + covalent_radius_scaled                            
+    # atom_Num_env = one_hot_encoding(str(atom.GetAtomicNum()), [1, 6, 7, 8, 9, "other"])
+    atom_type_enc = one_hot_encoding(str(atom.GetSymbol()), permitted_list_of_atoms)
+    degree_enc = one_hot_encoding(int(atom.GetTotalDegree()), [0, 1, 2, 3, 4, "MoreThanFour"])
+    formal_charge_enc = one_hot_encoding(int(atom.GetFormalCharge()), [-3, -2, -1, 0, 1, 2, 3, "Extreme"])  # yes
+    hybridisation_type_enc = one_hot_encoding(str(atom.GetHybridization()), ["S", "SP", "SP2", "SP3", "OTHER"])  # yes
+    # degree_enc = one_hot_encoding(str(atom.GetTotalDegree()), [0, 1, 2, 3, 4, 5, 6, 7, 8])
+    is_in_a_ring_enc = [int(atom.IsInRing())]  # yes
+    is_aromatic_enc = [int(atom.GetIsAromatic())]  # yes
+    atomic_mass_scaled = [float((atom.GetMass() - 10.812) / 116.092)]
+    vdw_radius_scaled = [float((Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum()) - 1.5) / 0.6)]
+    covalent_radius_scaled = [float((Chem.GetPeriodicTable().GetRcovalent(atom.GetAtomicNum()) - 0.64) / 0.76)]
+    atom_feature_vector = atom_type_enc + formal_charge_enc + hybridisation_type_enc + degree_enc + is_in_a_ring_enc + is_aromatic_enc + atomic_mass_scaled + vdw_radius_scaled + covalent_radius_scaled
     if use_chirality == True:
-        chirality_type_enc = one_hot_encoding(str(atom.GetChiralTag()), ["CHI_UNSPECIFIED", "CHI_TETRAHEDRAL_CW", "CHI_TETRAHEDRAL_CCW", "CHI_OTHER"])
+        chirality_type_enc = one_hot_encoding(str(atom.GetChiralTag()),
+                                              ["CHI_UNSPECIFIED", "CHI_TETRAHEDRAL_CW", "CHI_TETRAHEDRAL_CCW",
+                                               "CHI_OTHER"])
         atom_feature_vector += chirality_type_enc
-    
+
     if hydrogens_implicit == True:
         n_hydrogens_enc = one_hot_encoding(int(atom.GetTotalNumHs()), [0, 1, 2, 3, 4, "MoreThanFour"])
         atom_feature_vector += n_hydrogens_enc
 
-
     return np.array(atom_feature_vector)
 
 
-def get_bond_features(bond, 
-                      use_stereochemistry = True):
+def get_bond_features(bond,
+                      use_stereochemistry=True):
     """
     Takes an RDKit bond object as input and gives a 1d-numpy array of bond features as output.
     键特征有：键类型、键是否共轭、键是否在环中。作为附加选项，用户可以指定是否在双键周围包含 E-Z 立体化学特征。
     可以补充距离矩阵（原子之间的最短距离）
     """
-    permitted_list_of_bond_types = [Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE, Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC]
+    permitted_list_of_bond_types = [Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE,
+                                    Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC]
     bond_type_enc = one_hot_encoding(bond.GetBondType(), permitted_list_of_bond_types)
-    bond_is_conj_enc = [int(bond.GetIsConjugated())]  
-    bond_is_in_ring_enc = [int(bond.IsInRing())]   
-    bond_feature_vector = bond_type_enc + bond_is_conj_enc + bond_is_in_ring_enc 
+    bond_is_conj_enc = [int(bond.GetIsConjugated())]
+    bond_is_in_ring_enc = [int(bond.IsInRing())]
+    bond_feature_vector = bond_type_enc + bond_is_conj_enc + bond_is_in_ring_enc
     if use_stereochemistry == True:
         stereo_type_enc = one_hot_encoding(str(bond.GetStereo()), ["STEREOZ", "STEREOE", "STEREOANY", "STEREONONE"])
         bond_feature_vector += stereo_type_enc
@@ -105,7 +110,7 @@ def create_single_graph_from_smiles(smiles, label=0.0):
     Takes a single SMILES string and returns a PyTorch Geometric Data object 
     representing the molecular graph along with the associated label. 
     If no label is provided, the default label is 0.0.
-    """ 
+    """
     # convert SMILES to RDKit mol object
     mol = Chem.MolFromSmiles(smiles)
     # get feature dimensions
@@ -139,7 +144,7 @@ def create_single_graph_from_smiles(smiles, label=0.0):
 
     # create PyTorch Geometric Data object
     data = Data(x=X, edge_index=E, edge_attr=EF, y=y_tensor)
-    
+
     return data
 
 
@@ -147,9 +152,15 @@ def predict_enthalpy(smiles_str):
     """
     Predicts the generated enthalpy for a given SMILES string.
     Args:
-        smiles_str (str): The SMILES representation of the molecule.    Returns:
-        float: The predicted enthalpy value.
+        smiles_str (str): The SMILES representation of the molecule.
+    Returns:
+        float: The predicted enthalpy value or None if invalid.
     """
+    # Check if the SMILES string is valid
+    if not smiles_str or not utils.isValidSmiles(smiles_str):
+        print(f"Invalid SMILES string: {smiles_str}")
+        return 0.0  # 或者返回一个默认值
+
     # Convert SMILES to graph data
     data = create_single_graph_from_smiles(smiles_str)  # 使用转换方法生成 Data 对象
     # Prepare the data for the model
@@ -162,4 +173,4 @@ def predict_enthalpy(smiles_str):
 # Example usage:
 # smiles_exp = '[O-][N+](=O)C1=CC=NO1'
 # enthalpy = predict_enthalpy(smiles_exp)
-# print(f"Predicted Enthalpy: {enthalpy}") 
+# print(f"Predicted Enthalpy: {enthalpy}")

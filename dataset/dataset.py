@@ -16,9 +16,10 @@ def preprocess(df):
     diff = max_enthalpy - min_enthalpy
     lower_bound = min_enthalpy - threshold * diff
     upper_bound = max_enthalpy + threshold * diff
+    max_diff = upper_bound - lower_bound
     normalized_enthalpy = (enthalpy - lower_bound) / (upper_bound - lower_bound)
 
-    return normalized_enthalpy.tolist()
+    return normalized_enthalpy.tolist(), lower_bound, upper_bound
 
 
 class SmilesDataset(torch.utils.data.Dataset):
@@ -28,18 +29,19 @@ class SmilesDataset(torch.utils.data.Dataset):
         self.maxLength = maxLength
         self.data = pd.read_csv(fname)
         self.smiles = self.data['smiles'].tolist()
-        # smile_hot = []
-        # for smile in self.smiles:
-        #    hot = self.one_hot_collate_fn(smile)
-        #    smile_hot.append(hot)
         self.enthalpy = self.data['heat_of_formation'].tolist()
-        self.enthalpy = preprocess(self.enthalpy)
+        self.enthalpy, self.lb, self.ub = preprocess(self.enthalpy)
+        # 存储 one-hot 编码结果
+        self.smiles_hot = self.one_hot_collate_fn(self.smiles)
 
     def __len__(self):
         return len(self.smiles)
 
     def __getitem__(self, i):
-        return self.smiles[i], self.enthalpy[i]
+        return self.smiles_hot[i], self.enthalpy[i]
+
+    def _getbound(self):
+        return self.lb, self.ub
 
     def collate_fn(self, smilesStrs):
         tokenVectors = self.tokenizer.tokenize(smilesStrs, useTokenDict=True)
@@ -49,19 +51,13 @@ class SmilesDataset(torch.utils.data.Dataset):
         skip_vocab = 2
         tokenVectors = self.tokenizer.tokenize(smilesStrs, useTokenDict=True)
         numVectors = self.tokenizer.getNumVector(tokenVectors)
-
         one_hot_code = torch.zeros((len(smilesStrs), self.maxLength, self.tokenizer.getTokensSize() - skip_vocab), dtype=torch.float32)
-        
         for i, vec in enumerate(numVectors):
             for j, n in enumerate(vec):
-                if n - 2 < 0 or n - 2 >= one_hot_code.size(2):
-                    print(f"Warning: Token index {n} for SMILES '{smilesStrs[i]}' is out of bounds.")
-                    continue  # Skip this token if it's out of bounds
                 one_hot_code[i, j, n - 2] = 1
             if j + 1 < self.maxLength:
                 one_hot_code[i, j + 1:, 0] = 1
-            
-        return one_hot_code
+        return one_hot_code    
 
 # 使用方法
 # tokenizer = utils.get_tokenizer()
