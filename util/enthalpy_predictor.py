@@ -163,6 +163,7 @@ def predict_enthalpy(smiles_str):
 
     # Convert SMILES to graph data
     data = create_single_graph_from_smiles(smiles_str)  # 使用转换方法生成 Data 对象
+    # print(f"Data: {data}")  # 打印数据以检查
     # Prepare the data for the model
     data = data.to(device)  # Move data to the appropriate device
     # Make prediction

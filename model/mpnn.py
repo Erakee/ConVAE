@@ -42,6 +42,10 @@ class MPNNLayer(MessagePassing):
         return scatter(inputs, index, dim=self.node_dim, reduce=self.aggr)
     
     def update(self, aggr_out, h):
+        # if h.shape[1] != aggr_out.shape[1]: # cursor加的判断
+        #     print(f"Shape mismatch: h shape {h.shape}, aggr_out shape {aggr_out.shape}")
+        #     return h  # 或者返回一个默认值
+        # print(f'aggr_out shape:{aggr_out.shape}, h shape:{h.shape}')
         upd_out = torch.cat([h, aggr_out], dim=-1)
         return self.mlp_upd(upd_out)
 

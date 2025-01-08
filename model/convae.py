@@ -61,13 +61,14 @@ class Decoder(torch.nn.Module):
         self.maxLength = maxLength
         self.num_vacabs = num_vocabs
         self.device = device
+        self.con_dims = con_dims
         # self.gru1 = torch.nn.GRU(latent_dim, hidden_dim, num_hidden - 1, batch_first=True)
         # self.gru2 = torch.nn.GRU(hidden_dim + num_vacabs, hidden_dim, 1, batch_first=True)
         self.gru = torch.nn.GRU(latent_dim + num_vocabs + con_dims, hidden_dim,
                                 num_hidden, batch_first=True, device=self.device)
         self.fc = torch.nn.Linear(hidden_dim, num_vocabs, device=self.device)
 
-    def forward(self, latent_vec, enthalpy, inp, freerun=False, randomchoose=True): # decoder(latent_vec, enthalpy, X)
+    def forward(self, latent_vec, enthalpy, inp, freerun=False, randomchoose=True, condition=False): # decoder(latent_vec, enthalpy, X)
         # X = latent_vec.unsqueeze(1).repeat(1, self.maxLength, 1)
         # X, _ = self.gru1(X)
         # inp_zeros = torch.zeros((inp.shape[0], 1, inp.shape[2]), dtype=torch.float32)
@@ -75,6 +76,7 @@ class Decoder(torch.nn.Module):
         # X = torch.concat([X, inp_new], dim=2)
         # X, _ = self.gru2(X)
         latent_vec = latent_vec.to(self.device) # (512, 64)
+        enthalpy_ori = enthalpy
         enthalpy = enthalpy.unsqueeze(1).unsqueeze(2).expand(-1, self.maxLength, -1) # (512, 128, 1)
 
         if not freerun:
@@ -89,8 +91,12 @@ class Decoder(torch.nn.Module):
             return self.fc(X)
         else:
             out = torch.zeros((latent_vec.shape[0], self.maxLength, self.num_vacabs), dtype=torch.float32)
-            X_latent = latent_vec.unsqueeze(1)
-            X = torch.concat([X_latent, torch.zeros((latent_vec.shape[0], 1, self.num_vacabs), dtype=torch.float32, device=self.device)], dim=2)
+            X_latent = latent_vec.unsqueeze(1) # (512, 1, 64)
+            X = torch.concat([X_latent, torch.zeros((latent_vec.shape[0], 1, self.num_vacabs), dtype=torch.float32, device=self.device)], dim=2) # (512, 1, 64+17)
+            if condition:
+                X = torch.concat([X, enthalpy_ori.unsqueeze(1).unsqueeze(2)], dim=2)
+            else:
+                X = torch.concat([X, torch.zeros((latent_vec.shape[0], 1, self.con_dims), dtype=torch.float32, device=self.device)], dim=2)
             shift = X_latent.shape[-1]
             hidden = None
             for i in range(self.maxLength):
@@ -225,14 +231,20 @@ class ConVAE(object):
         # 计算有效的损失，只对有效的样本计算
         # 如果有有效的样本，则计算条件损失的平均值
         # valid_mask = float(valid_enthalpy != 0)#.float()  # 有效分子的mask
+        # num_valids = 0
+        # for i, val in enumerate(valid_enthalpy_tensor):
+        #     if val != 0:
+        #         num_valids +=1
+
         valid_mask = (valid_enthalpy_tensor != 0).to(torch.float32)
         num_valid = valid_mask.sum()
-        if num_valid > 0:
+        if num_valid > 0: # 这里有问题，如果一直是输出20的话那就没有梯度了？然后num_valid判断有点问题
             valid_enthalpy_tensor = valid_enthalpy_tensor * (ub - lb) + lb  # Reverse normalization
             cond_loss_mean = torch.nn.functional.mse_loss(predicted_enthalpy_tensor[valid_mask != 0], valid_enthalpy_tensor[valid_mask != 0])  # 只计算有效样本的损失
+            cond_loss_mean = cond_loss_mean / num_valid
         else:
             valid_enthalpy_tensor = torch.tensor([0.0] * len(valid_enthalpy_tensor), device=self.device)
-            cond_loss_mean = torch.tensor(1.0, device=self.device)  # 如果没有有效样本，返回1
+            cond_loss_mean = torch.tensor(20.0, device=self.device)  # 如果没有有效样本，返回1
 
         return cond_loss_mean # loss_per_sample_tensor, predicted_enthalpy_tensor, valid_enthalpy_tensor
 
@@ -250,12 +262,12 @@ class ConVAE(object):
         self.lb = lb
         self.ub = ub
         minloss = None
-        numSample = 10
+        numSample = 100 # 训练过程中采样，用于计算valid数量
         for epoch in range(1, nepoch + 1):
             reconstruction_loss_list, accumulated_reconstruction_loss, kld_loss_list, accumulated_kld_loss, cond_loss_list, accumulated_cond_loss = [], 0, [], 0, [], 0
             quality_list, numValid_list = [], []
             for nBatch, (X, enthalpy) in enumerate(dataloader, 1):
-                print(f'Epoch {epoch}, batch {nBatch} is initialized, start training for this batch.')
+                # print(f'Epoch {epoch}, batch {nBatch} is initialized, start training for this batch.')
                 self.encoder.train()
                 self.decoder.train()
                 X = X.to(torch.float32)  # 将 X 转换为 float32
@@ -263,12 +275,17 @@ class ConVAE(object):
                 X = X.to(self.device)
                 enthalpy = enthalpy.to(self.device)
                 latent_vec, mu, logvar = self.encoder(X, enthalpy) # (512, 64)
-                print('Encoder processed!')
+                # print('Encoder processed!')
                 pred_y = self.decoder(latent_vec, enthalpy, X) # (512, 128,17)
-                print('Decoder processed!')
+                # print('Decoder processed!')
                 predicted_indices = pred_y.argmax(dim=2)  #(512, 128) 这里是为了将输出解码为smiles，方便后续直接使用gnn预测生成焓
                 predicted_smiles = tokenizer.getSmiles(predicted_indices) # list 512
-                print('Decoder output decode to smiles!')
+                # torch.save(pred_y, f'D:/Project/VAE_Related/ConVAE/debug_file_dir/epoch{epoch}_pred_y.pt')
+                # torch.save(predicted_indices, f'D:/Project/VAE_Related/ConVAE/debug_file_dir/epoch{epoch}_predicted_indices.pt')
+                # torch.save(predicted_smiles, f'D:/Project/VAE_Related/ConVAE/debug_file_dir/epoch{epoch}_predicted_smiles.pt')
+                # print(f'test for print the variables\' shape: predicted indices 5-7:{predicted_indices[5].shape},{predicted_indices[6].shape},{predicted_indices[7].shape}')
+                # print(f'test for print the variables: predicted indices 5-7,from 0-20 idx:{predicted_indices[5][0:20]},{predicted_indices[6][0:20]},{predicted_indices[7][0:20]}')
+                # print('Decoder output decode to smiles!')
                 reconstruction_loss, kld_loss, cond_loss_mean = self.loss_per_sample(
                     pred_y, X, mu, logvar, predicted_smiles, enthalpy, lb, ub)
                 reconstruction_mean, kld_mean, cond_mean = reconstruction_loss.mean(), kld_loss.mean() * \
