@@ -12,3 +12,6 @@ enthalpy/diaoyong.ipynb
 /util/__pycache__
 /util/__pycache__
 /util/__pycache__
+/parameters
+/parameters
+*.param
