@@ -157,8 +157,8 @@ def predict_enthalpy(smiles_str):
         float: The predicted enthalpy value or None if invalid.
     """
     # Check if the SMILES string is valid
-    if not smiles_str or not utils.isValidSmiles(smiles_str):
-        print(f"Invalid SMILES string: {smiles_str}")
+    if not smiles_str or not utils.isValidSmiles(smiles_str) or len(smiles_str) <= 2:
+        # print(f"Invalid SMILES string: {smiles_str}")
         return 0.0  # 或者返回一个默认值
 
     # Convert SMILES to graph data
@@ -171,7 +171,8 @@ def predict_enthalpy(smiles_str):
         pred = model(data)  # 直接传递 data 对象
         return pred.item()  # Return the predicted enthalpy value
 
+
 # Example usage:
-# smiles_exp = '[O-][N+](=O)C1=CC=NO1'
+# smiles_exp = '[O-][N+](=O)C1=CC=NO1'  # 单个字符会报错，如'C'
 # enthalpy = predict_enthalpy(smiles_exp)
 # print(f"Predicted Enthalpy: {enthalpy}")

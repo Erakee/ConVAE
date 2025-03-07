@@ -3,13 +3,13 @@ import os
 # 将 ConVAE 目录添加到系统路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from dataset.dataset import SmilesDataset
+from dataset.dataset import SmilesDictDataset
 from util.tokens import Tokenizer
 import util.utils as utils
 import torch
 # import rnn
 # import vae
-import model.convae as cvae
+import model.convae_215 as cvae
 import argparse
 import multiprocessing
 
@@ -30,14 +30,13 @@ def main():
 
     tokenizer = utils.get_tokenizer()
     print(tokenizer.tokensDict)
-    smilesDataset = SmilesDataset(
+    smilesDataset = SmilesDictDataset(
         utils.config['fname_dataset'], tokenizer, utils.config['maxLength'])
     lb, ub = smilesDataset._getbound()
     # if model_type == 'cvae':
     smilesDataloader = torch.utils.data.DataLoader(
         smilesDataset, batch_size=utils.config['batch_size'], 
-        shuffle=True, num_workers=4) 
-        # collate_fn=smilesDataset.one_hot_collate_fn)
+        shuffle=True, num_workers=4, drop_last=True, collate_fn=SmilesDictDataset.collate_fn)
 
     vae_model = cvae.ConVAE(**utils.config['vae_param'],
                         encoder_state_fname=utils.config['fname_vae_encoder_parameters'],

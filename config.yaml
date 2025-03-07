@@ -12,10 +12,10 @@
  fname_vae_decoder_parameters: 'parameters/decoder.param'
  sampled_dir: 'sampled'
  target_sample_dir: 'target_sample'
- maxLength: 128
- batch_size: 512
- num_epoch: 2000
- lr: 1.0e-4
+ maxLength: 64
+ batch_size: 256
+ num_epoch: 1000
+ lr: 5.0e-4
  threshold: 0.2
 
 
@@ -28,5 +28,5 @@
   con_dims: 1
   fc_dims: [2048, 512, 128]
   latent_dim: 64
-  hidden_dim: 384
+  hidden_dim: 384 #384
   num_hidden: 3
